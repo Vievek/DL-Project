@@ -1,0 +1,29 @@
+# Data — never commit raw dataset or generated splits (too large, and Kaggle terms restrict redistribution)
+data/raw/
+data/*.csv
+data/splits/
+
+# Model checkpoints — too large for GitHub, link to Drive instead
+*.pt
+*.pth
+*.bin
+*.ckpt
+checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Environment
+.env

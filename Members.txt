@@ -1,0 +1,7 @@
+# Members.txt — required in the final submission zip
+# Format: Full Name | Student Number | Email
+
+Pancharatnam Deepatharshan (DEEPDEV) | TODO student number | panchdeepan147@gmail.com
+TODO full name | TODO student number | TODO email
+TODO full name | TODO student number | TODO email
+TODO full name | TODO student number | TODO email

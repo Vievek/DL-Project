@@ -1,0 +1,14 @@
+# Pin exact versions once your Colab/local environment is finalised (pip freeze > requirements.txt)
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn
+torch
+torchtext
+transformers
+datasets
+nltk
+pyyaml
+tqdm
+jupyter

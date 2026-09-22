@@ -1,0 +1,49 @@
+# Shared configuration — ALL FOUR MODELS train and evaluate against these same settings.
+# Do not fork this per-model; if a model genuinely needs a different value, discuss with the team
+# and document why in the report (Experimental Design section).
+
+seed: 42
+
+data:
+  raw_csv: "data/raw/train.csv"
+  split_dir: "data/splits"
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  stratify_on: "labels"          # stratified by label combination / dominant label
+  labels:
+    - toxic
+    - severe_toxic
+    - obscene
+    - threat
+    - insult
+    - identity_hate
+
+preprocessing:
+  max_length: 128
+  lowercase: true
+  fit_tokenizer_on: "train"      # never "full" — avoids leakage
+  min_vocab_freq: 2
+
+training:
+  batch_size: 32
+  epochs: 10
+  early_stopping_patience: 3
+  optimizer: "adam"
+  learning_rate: 0.001           # override per model in that model's own notes if tuned differently on val
+  loss: "bce_with_logits"        # multi-label
+  class_weighting: true
+
+evaluation:
+  primary_metric: "macro_f1"
+  metrics:
+    - macro_f1
+    - micro_f1
+    - precision_per_class
+    - recall_per_class
+    - roc_auc
+    - pr_auc
+  threshold_tuning: "per_class_on_validation"
+
+hardware:
+  gpu_type: "TODO — record the actual Colab GPU type (e.g. T4) and keep it consistent across all 4 timing runs"
