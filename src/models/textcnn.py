@@ -1,5 +1,6 @@
 """
-M2 — TextCNN (owner: Teammate B)
+M2 — TextCNN 
+Owner: Tharsiga Ranganathan (M2) - Preprocessing & TextCNN
 
 Convolutional filters of several widths slide over the word-embedding sequence, each width
 capturing a different n-gram-like pattern; max-pool each, concatenate, classify. Kim (2014),
