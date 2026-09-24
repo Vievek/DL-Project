@@ -1,6 +1,8 @@
 """
 Shared training/evaluation entry point — ALL FOUR MODELS run through this script so results are
 directly comparable (same metrics, same logging format, same config).
+Owner: vievegan
+Role: M3 (Shared training/evaluation script)
 
 Usage:
     python -m src.train_eval --model bilstm --config config.yaml
