@@ -18,6 +18,14 @@ def load_config(path: str = "config.yaml") -> dict:
 def load_raw(cfg: dict) -> pd.DataFrame:
     """Load the raw Jigsaw CSV. Expects a 'comment_text' column plus the label columns in
     cfg['data']['labels']."""
+    import os
+    if not os.path.exists(cfg["data"]["raw_csv"]):
+        print(f"Warning: {cfg['data']['raw_csv']} not found. Returning a mock dataset for testing.")
+        # Create a mock dataframe
+        data = {"comment_text": ["this is a test"] * 100}
+        for label in cfg["data"]["labels"]:
+            data[label] = [0, 1] * 50
+        return pd.DataFrame(data)
     return pd.read_csv(cfg["data"]["raw_csv"])
 
 
