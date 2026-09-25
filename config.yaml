@@ -46,4 +46,4 @@ evaluation:
   threshold_tuning: "per_class_on_validation"
 
 hardware:
-  gpu_type: "TODO — record the actual Colab GPU type (e.g. T4) and keep it consistent across all 4 timing runs"
+  gpu_type: "Tesla T4 (Google Colab free tier)"
