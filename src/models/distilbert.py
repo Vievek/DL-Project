@@ -171,6 +171,56 @@ def train_distilbert(cfg, train_df, val_df, test_df, ckpt_dir=None, head_epochs=
     }
 
 
+def smoke_test(cfg, train_df, val_df, test_df, full_train_size, ckpt_dir=None, fp16=True):
+    """1-epoch sanity check on a subsample: verifies [CLS] extraction, output shape and checkpoint
+    saving, then extrapolates time/epoch to the full training set."""
+    labels = cfg["data"]["labels"]
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    tok = get_tokenizer()
+    texts = list(train_df["comment_text"].head(4))
+    enc = tok(texts, max_length=cfg["preprocessing"]["max_length"], padding="max_length",
+              truncation=True, return_tensors="pt").to(device)
+
+    model = DistilBertClassifier(len(labels)).to(device).eval()
+    with torch.no_grad():
+        logits = model(enc["input_ids"], enc["attention_mask"])
+        hidden = model.bert(input_ids=enc["input_ids"], attention_mask=enc["attention_mask"])
+        manual = model.classifier(hidden.last_hidden_state[:, 0, :])  # token 0 = [CLS]
+    checks = {
+        "output_shape": list(logits.shape),
+        "output_shape_ok": tuple(logits.shape) == (4, len(labels)),
+        "cls_extraction_ok": bool(torch.allclose(logits, manual, atol=1e-5)),
+        "first_token_is_cls_id": bool((enc["input_ids"][:, 0] == tok.cls_token_id).all()),
+    }
+    assert checks["output_shape_ok"] and checks["cls_extraction_ok"], checks
+    del model
+
+    results = train_distilbert(cfg, train_df, val_df, test_df, ckpt_dir, head_epochs=0,
+                               ft_epochs=1, fp16=fp16)
+    ckpt_file = os.path.join(ckpt_dir, "last.pt") if ckpt_dir else None
+    checks["checkpoint_saved"] = bool(ckpt_file and os.path.getsize(ckpt_file) > 0)
+    checks["checkpoint_path"] = ckpt_file
+
+    epoch_time = results["history"][0]["epoch_time_sec"]
+    n = len(train_df)
+    est_epoch = epoch_time / n * full_train_size
+    return {
+        "model": "distilbert-base-uncased",
+        "subsample_train_rows": n,
+        "full_train_rows": full_train_size,
+        "params_total": results["efficiency"]["params_total"],
+        "gpu": results["efficiency"]["gpu"],
+        "fp16": results["efficiency"]["fp16"],
+        "epoch_time_sec_subsample": epoch_time,
+        "est_epoch_time_sec_full": est_epoch,
+        "est_time_3_epochs_min_full": est_epoch * 3 / 60,
+        "inference_sec_per_1000": results["efficiency"]["inference_sec_per_1000"],
+        "checks": checks,
+        "val_macro_f1": results["val"]["macro_f1"],
+        "test_macro_f1": results["test"]["macro_f1"],
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="config.yaml")

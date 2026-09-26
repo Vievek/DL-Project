@@ -38,6 +38,9 @@ def parse_args():
     parser.add_argument("--head-epochs", type=int, default=1, help="distilbert: frozen-base epochs")
     parser.add_argument("--ft-epochs", type=int, default=2, help="distilbert: full fine-tune epochs")
     parser.add_argument("--subsample", type=int, default=None, help="use only N random rows (smoke tests)")
+    parser.add_argument("--smoke", action="store_true",
+                        help="distilbert: 1-epoch sanity check on a 10k subsample -> results/distilbert_smoke.json")
+    parser.add_argument("--no-fp16", action="store_true", help="disable fp16 mixed precision")
     return parser.parse_args()
 
 
@@ -46,6 +49,9 @@ def main():
     cfg = load_config(args.config)
 
     df = load_raw(cfg)
+    full_train_size = int(len(df) * cfg["data"]["train_ratio"])
+    if args.smoke and not args.subsample:
+        args.subsample = 10000
     if args.subsample:
         df = df.sample(args.subsample, random_state=cfg["seed"])
     train_df, val_df, test_df = make_or_load_split(cfg, df)
@@ -59,14 +65,20 @@ def main():
         if args.data_pipeline != "hf":
             raise SystemExit("DistilBERT uses its pretrained tokenizer: pass --data-pipeline hf")
         module = importlib.import_module(MODEL_REGISTRY["distilbert"])
-        results = module.train_distilbert(
-            cfg, train_df, val_df, test_df, args.ckpt_dir, args.head_epochs, args.ft_epochs
-        )
-        out = args.out or "results/distilbert_results.json"
+        if args.smoke:
+            results = module.smoke_test(cfg, train_df, val_df, test_df, full_train_size,
+                                        args.ckpt_dir, fp16=not args.no_fp16)
+            out = args.out or "results/distilbert_smoke.json"
+        else:
+            results = module.train_distilbert(
+                cfg, train_df, val_df, test_df, args.ckpt_dir, args.head_epochs, args.ft_epochs,
+                fp16=not args.no_fp16,
+            )
+            out = args.out or "results/distilbert_results.json"
         os.makedirs(os.path.dirname(out), exist_ok=True)
         with open(out, "w") as f:
             json.dump(results, f, indent=2)
-        print(f"Test macro-F1: {results['test']['macro_f1']:.4f} -> saved to {out}")
+        print(f"Saved to {out}")
         return
 
     # TODO (other model owners): build vocab from train_df only (data_utils.build_vocab), make
