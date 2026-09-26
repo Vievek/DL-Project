@@ -1,7 +1,9 @@
 # Data — never commit raw dataset or generated splits (too large, and Kaggle terms restrict redistribution)
 data/raw/
 data/*.csv
-data/splits/
+data/splits/*
+!data/splits/vocab.json
+data/embeddings/
 
 # Model checkpoints — too large for GitHub, link to Drive instead
 *.pt

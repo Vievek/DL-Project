@@ -14,6 +14,7 @@ import json
 from collections import Counter
 import torch
 from torch.utils.data import Dataset, DataLoader
+import numpy as np
 
 
 def load_config(path: str = "config.yaml") -> dict:
@@ -179,6 +180,33 @@ def build_dataloaders(cfg: dict, train_df, val_df, test_df, vocab: dict, num_wor
             pin_memory=torch.cuda.is_available(),
         ))
     return tuple(loaders)  # (train_loader, val_loader, test_loader)
+
+def load_glove_embeddings(vocab: dict, glove_path: str, embed_dim: int = 100,
+                          seed: int = 42, verbose: bool = True) -> torch.Tensor:
+    """
+    Build the [vocab_size, embed_dim] embedding matrix from GloVe 6B.
+    - word found in GloVe  -> its GloVe vector
+    - word not in GloVe (incl. <unk>) -> small random U(-0.25, 0.25) (Kim, 2014), seeded
+    - <pad> (index 0) -> all zeros
+    Use in a model: nn.Embedding.from_pretrained(emb, freeze=False, padding_idx=PAD_IDX)
+    """
+    rng = np.random.default_rng(seed)
+    emb = rng.uniform(-0.25, 0.25, size=(len(vocab), embed_dim)).astype(np.float32)
+    emb[PAD_IDX] = 0.0
+
+    found = 0
+    with open(glove_path, encoding="utf-8") as f:
+        for line in f:
+            parts = line.rstrip().split(" ")
+            idx = vocab.get(parts[0])
+            if idx is not None and len(parts) == embed_dim + 1:
+                emb[idx] = np.asarray(parts[1:], dtype=np.float32)
+                found += 1
+
+    if verbose:
+        print(f"GloVe: found {found:,} / {len(vocab):,} vocab words ({found / len(vocab):.2%}); "
+              f"the rest are random-initialised")
+    return torch.from_numpy(emb)
 
 
 def compute_class_weights(train_df: pd.DataFrame, label_cols: list):
