@@ -12,6 +12,8 @@ import os
 import re
 import json
 from collections import Counter
+import torch
+from torch.utils.data import Dataset, DataLoader
 
 
 def load_config(path: str = "config.yaml") -> dict:
@@ -126,6 +128,57 @@ def save_vocab(vocab: dict, path: str = "data/splits/vocab.json"):
 def load_vocab(path: str = "data/splits/vocab.json") -> dict:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+class ToxicDataset(Dataset):
+    """Encodes every comment ONCE at start-up. Each item = (input_ids[max_len], length, labels[6])."""
+
+    def __init__(self, df, vocab: dict, label_cols: list, max_len: int = 128, text_col: str = "comment_text"):
+        encoded = [encode(t, vocab, max_len) for t in df[text_col]]
+        self.input_ids = torch.tensor([e[0] for e in encoded], dtype=torch.long)
+        self.lengths = torch.tensor([e[1] for e in encoded], dtype=torch.long)
+        self.labels = torch.tensor(df[label_cols].values, dtype=torch.float)
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        return self.input_ids[idx], self.lengths[idx], self.labels[idx]
+
+
+def collate_fn(batch):
+    """Shared by BiLSTM / TextCNN / BiLSTM+Attention.
+    Returns (input_ids [B, L] long, lengths [B] long, mask [B, L] bool, labels [B, 6] float).
+    mask is True for real tokens. It is built from lengths, so an empty comment still has
+    1 True position (avoids NaN in attention softmax)."""
+    input_ids, lengths, labels = zip(*batch)
+    input_ids = torch.stack(input_ids)
+    lengths = torch.stack(lengths)
+    labels = torch.stack(labels)
+    mask = torch.arange(input_ids.size(1)).unsqueeze(0) < lengths.unsqueeze(1)
+    return input_ids, lengths, mask, labels
+
+
+def build_dataloaders(cfg: dict, train_df, val_df, test_df, vocab: dict, num_workers: int = 0):
+    """Train loader is shuffled with a seeded generator (reproducible); val/test are not shuffled."""
+    label_cols = cfg["data"]["labels"]
+    max_len = cfg["preprocessing"]["max_length"]
+    batch_size = cfg["training"]["batch_size"]
+    g = torch.Generator()
+    g.manual_seed(cfg["seed"])
+
+    loaders = []
+    for df, shuffle in [(train_df, True), (val_df, False), (test_df, False)]:
+        ds = ToxicDataset(df, vocab, label_cols, max_len)
+        loaders.append(DataLoader(
+            ds,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            collate_fn=collate_fn,
+            num_workers=num_workers,
+            generator=g if shuffle else None,
+            pin_memory=torch.cuda.is_available(),
+        ))
+    return tuple(loaders)  # (train_loader, val_loader, test_loader)
 
 
 def compute_class_weights(train_df: pd.DataFrame, label_cols: list):
