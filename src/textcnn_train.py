@@ -16,12 +16,11 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import (average_precision_score, f1_score, precision_score,
-                             recall_score, roc_auc_score)
+from scipy.special import expit
+from sklearn.metrics import (average_precision_score, f1_score, precision_recall_curve,
+                             precision_score, recall_score, roc_auc_score)
 
 from src.models.textcnn import TextCNNClassifier, count_parameters
-
-THRESHOLD_GRID = np.round(np.arange(0.05, 0.96, 0.05), 2)  # 0.05, 0.10, ..., 0.95
 
 
 def set_seed(seed: int):
@@ -44,16 +43,20 @@ def predict_logits(model, loader, device):
 
 
 def sigmoid(x):
-    return 1.0 / (1.0 + np.exp(-x))
+    """float64 + expit: stable (no overflow warning) and large logits don't all round to 1.0."""
+    return expit(np.asarray(x, dtype=np.float64))
 
 
 def tune_thresholds(y_true, y_prob, label_cols):
-    """Per-class threshold that maximises F1 on VALIDATION (config: per_class_on_validation)."""
+    """Per-class threshold that maximises F1 on VALIDATION (config: per_class_on_validation).
+    Tries every distinct predicted probability (precision_recall_curve), so the best threshold
+    is never cut off by a fixed grid. With pos_weight, the best thresholds are often > 0.95
+    (the old 0.05-0.95 grid hit its 0.95 cap for 5 of 6 classes)."""
     best = {}
     for j, col in enumerate(label_cols):
-        scores = [f1_score(y_true[:, j], (y_prob[:, j] >= t).astype(int), zero_division=0)
-                  for t in THRESHOLD_GRID]
-        best[col] = float(THRESHOLD_GRID[int(np.argmax(scores))])
+        p, r, t = precision_recall_curve(y_true[:, j], y_prob[:, j])
+        f1 = 2 * p[:-1] * r[:-1] / np.clip(p[:-1] + r[:-1], 1e-12, None)
+        best[col] = float(t[int(np.argmax(f1))])
     return best
 
 
