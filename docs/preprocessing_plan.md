@@ -3,7 +3,8 @@
 Applies to the three word-level models: **BiLSTM (M1), TextCNN (M2), BiLSTM + Attention (M3)**.
 DistilBERT (M4) uses its own WordPiece tokenizer and does not follow steps 2–5.
 
-All numbers below come from `notebooks/eda_preprocessing_m2.ipynb` (full `train.csv`, 159,571 comments).
+Numbers in sections 1–6 come from `notebooks/eda_preprocessing_m2.ipynb` (full `train.csv`, 159,571 comments) and were used to make the decisions.
+**Section 9 has the final numbers from the implemented pipeline** (train split only). Use those in the report.
 
 ---
 
@@ -56,7 +57,7 @@ Evidence (full dataset, an estimate only):
 | Vocab with min_freq = 2 | 94,883 |
 | Text still covered with min_freq = 2 | 99.20% |
 
-`min_freq = 2` removes more than half the vocabulary (mostly typos, spam and usernames) but keeps 99.2% of the text. The final train-only vocabulary will be somewhat smaller.
+`min_freq = 2` removes more than half the vocabulary (mostly typos, spam and usernames) but keeps 99.2% of the text. The final train-only vocabulary is 74,916 (section 9).
 
 ## 4. Sequence length
 
@@ -79,36 +80,64 @@ Evidence:
 
 ## 5. Embeddings
 
-- **GloVe 6B, 100 dimensions** (`glove.6B.100d.txt`) → set `embed_dim: 100` in `config.yaml`.
-  The current value (128) does not match any GloVe file and must change.
+- **GloVe 6B, 100 dimensions** (`glove.6B.100d.txt`), with `embed_dim: 100` in `config.yaml` (done).
 - Why 100d instead of 200d: faster to load and train on a free Colab T4, and half the embedding size.
-  With about 95k words, the embedding table is about 95,000 × 100 ≈ 9.5M parameters, which is most of TextCNN's size.
-- Words in our vocab but not in GloVe: small random vectors.
+  With the final vocabulary, the embedding table is 74,916 × 100 = 7,491,600 parameters, which is about 99% of TextCNN's size.
+- Words in our vocab but not in GloVe: small random vectors, U(−0.25, 0.25) (Kim, 2014), seeded with 42.
 - `<pad>` row: all zeros.
 - Embeddings are fine-tuned during training.
-- We report GloVe coverage (% of vocab found in GloVe) when loading.
-- Optional ablation (Day 6): GloVe vs random embeddings, same everything else.
+- GloVe coverage is printed when loading (section 9).
+- Ablation (done): GloVe vs random embeddings, with everything else the same. See section 9.
 
 ## 6. Class weights
 
 - `pos_weight` for each label = (negative count) / (positive count), computed on the **train split only**.
-- Passed to `BCEWithLogitsLoss` (used by M3's shared training script).
+- Passed to `BCEWithLogitsLoss`.
 - Needed because the classes are very unbalanced: `threat` has 478 positive comments and `identity_hate` 1,405, out of 159,571.
 
-## 7. Functions to provide in `src/data_utils.py` (agree with M3)
+## 7. Functions in `src/data_utils.py` (implemented)
 
 | Function | Input | Output |
 |---|---|---|
 | `clean_text(text)` | raw string | cleaned string |
-| `tokenize(text)` | cleaned string | list of tokens |
-| `build_vocab(train_texts, min_freq=2)` | train texts only | dict word → id |
-| `encode(texts, vocab, max_len=128)` | texts + vocab | LongTensor of shape (N, 128) |
-| `load_glove(path, vocab, dim=100)` | GloVe file + vocab | FloatTensor of shape (vocab_size, 100) |
-| `compute_pos_weight(train_labels)` | train label matrix | FloatTensor of shape (6,) |
+| `tokenize(text)` | raw string (cleans it first) | list of tokens |
+| `build_vocab(train_texts, min_freq=2)` | train texts only | dict token → id (`<pad>`=0, `<unk>`=1) |
+| `save_vocab(vocab, path)` / `load_vocab(path)` | vocab / path | `vocab.json` / dict |
+| `oov_rate(texts, vocab)` | texts + vocab | fraction of tokens that are `<unk>` |
+| `encode(text, vocab, max_len=128)` | one text + vocab | (list of 128 ids, real length ≥ 1) |
+| `ToxicDataset(df, vocab, label_cols, max_len)` | split DataFrame | items (input_ids, length, labels[6]), encoded once |
+| `collate_fn(batch)` | list of items | (input_ids [B,128], lengths [B], mask [B,128] bool, labels [B,6]) |
+| `build_dataloaders(cfg, train_df, val_df, test_df, vocab)` | config + splits | train / val / test DataLoaders (only train shuffled, seeded) |
+| `load_glove_embeddings(vocab, glove_path, embed_dim=100, seed=42)` | GloVe file + vocab | FloatTensor (vocab_size, 100) |
+| `compute_class_weights(train_df, label_cols)` | train split | `pos_weight` per label |
 
-## 8. Decisions the team must confirm
+`mask` is `True` for real tokens. It is used by TextCNN (masked max pooling) and by the attention model (M3). `lengths` is used by BiLSTM packing.
 
-1. GloVe **100d** and `embed_dim: 100` in `config.yaml`.
-2. **Lowercase = True** (the report must explain the lost "caps" signal).
-3. Who downloads GloVe (`glove.6B.zip`, about 820 MB) and puts `glove.6B.100d.txt` in the shared Drive folder.
-4. Function names above, so M3's `train_eval.py` can call them.
+## 8. Team decisions (status)
+
+1. GloVe **100d** and `embed_dim: 100` in `config.yaml`: **done**.
+2. **Lowercase = True**: **done**. The report explains the lost "caps" signal.
+3. GloVe download: **done**. `glove.6B.100d.txt` is in the shared Drive folder (`DL-Project/embeddings/`).
+4. Function names above: **implemented**. The shared `train_eval.py` does not use them yet (reported to the team lead).
+5. Split counts (111,699 / 23,936 / 23,936): **waiting for M1 to confirm** that her split gives the same counts.
+
+## 9. Final numbers (implemented pipeline)
+
+| Measure | Value |
+|---|---|
+| Split (train / val / test), stratified, seed 42 | 111,699 / 23,936 / 23,936 |
+| Batches of 32 (train / val / test) | 3,491 / 748 / 748 |
+| Vocabulary (train only, min_freq 2, incl. `<pad>`/`<unk>`) | 74,916 |
+| Vocabulary if built on full data (would leak) | 94,883 |
+| Token coverage on train | 99.12% |
+| OOV rate on validation | 1.74% |
+| Vocab words found in GloVe | 54,950 / 74,916 (73.35%) |
+| Comments longer than 128 tokens (truncated) | 16.5% |
+
+**GloVe ablation (TextCNN C4, same seed, validation):** GloVe macro-F1 0.6486 vs random 0.6259 (+0.023). The biggest gain was `identity_hate` (+0.071), and GloVe converged at epoch 3 vs 9. Details: `results/textcnn_ablation.csv`, report Section 7.6.
+
+**Known limitations:**
+- GloVe splits "don't" into "do" + "n't", but our tokenizer keeps "don't", so some common contractions have no GloVe vector.
+- Text in other scripts (e.g. Cyrillic) becomes single meaningless characters.
+- 16.5% of comments lose their end to truncation. Some missed threats in the error analysis may be in the cut part.
+- All-caps "shouting" is lost by lowercasing.
