@@ -1,0 +1,85 @@
+{
+  "model": "textcnn",
+  "hparams": {
+    "num_filters": 100,
+    "filter_sizes": [
+      3,
+      4,
+      5
+    ],
+    "dropout": 0.5,
+    "lr": 0.001
+  },
+  "embeddings": "glove.6B.100d",
+  "class_weighting": true,
+  "params_total": 7613706,
+  "params_without_embedding": 122106,
+  "best_epoch": 1,
+  "epochs_run": 1,
+  "avg_epoch_time_sec": 25.469074726104736,
+  "total_train_time_sec": 25.469074726104736,
+  "device": "Tesla T4",
+  "val": {
+    "macro_f1": 0.575197830479457,
+    "micro_f1": 0.7147512109202995,
+    "f1_per_class": {
+      "toxic": 0.78014495936745,
+      "severe_toxic": 0.41501103752759383,
+      "obscene": 0.8143194335169158,
+      "threat": 0.29003021148036257,
+      "insult": 0.7228525121555915,
+      "identity_hate": 0.42882882882882883
+    },
+    "precision_per_class": {
+      "toxic": 0.7861885790172642,
+      "severe_toxic": 0.2822822822822823,
+      "obscene": 0.8117647058823529,
+      "threat": 0.18461538461538463,
+      "insult": 0.6936236391912908,
+      "identity_hate": 0.34593023255813954
+    },
+    "recall_per_class": {
+      "toxic": 0.7741935483870968,
+      "severe_toxic": 0.7833333333333333,
+      "obscene": 0.8168902920284136,
+      "threat": 0.676056338028169,
+      "insult": 0.754653130287648,
+      "identity_hate": 0.5639810426540285
+    },
+    "roc_auc": {
+      "toxic": 0.9749865791813797,
+      "severe_toxic": 0.9871344319716407,
+      "obscene": 0.986103623043865,
+      "threat": 0.9777439411242228,
+      "insult": 0.9792041175482878,
+      "identity_hate": 0.9809933129909758
+    },
+    "pr_auc": {
+      "toxic": 0.8677441151930377,
+      "severe_toxic": 0.3991868811975912,
+      "obscene": 0.8777307185532139,
+      "threat": 0.3390552213908651,
+      "insult": 0.7694970467257198,
+      "identity_hate": 0.3888208875894812
+    },
+    "thresholds": {
+      "toxic": 0.85,
+      "severe_toxic": 0.95,
+      "obscene": 0.9,
+      "threat": 0.95,
+      "insult": 0.9,
+      "identity_hate": 0.95
+    }
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.4871652211392378,
+      "val_loss": 0.3592791259288788,
+      "val_macro_f1": 0.575197830479457,
+      "val_macro_f1_at_0.5": 0.4599249286905766,
+      "epoch_time_sec": 25.469074726104736
+    }
+  ],
+  "note": "1-epoch sanity check, validation only (unfold+matmul conv)"
+}

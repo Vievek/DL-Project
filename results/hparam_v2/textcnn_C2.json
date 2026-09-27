@@ -1,0 +1,143 @@
+{
+  "model": "textcnn",
+  "hparams": {
+    "num_filters": 64,
+    "filter_sizes": [
+      3,
+      4,
+      5
+    ],
+    "dropout": 0.5,
+    "lr": 0.001
+  },
+  "embeddings": "glove.6B.100d",
+  "class_weighting": true,
+  "params_total": 7569750,
+  "params_without_embedding": 78150,
+  "best_epoch": 5,
+  "epochs_run": 8,
+  "avg_epoch_time_sec": 22.618355005979538,
+  "total_train_time_sec": 180.9468400478363,
+  "device": "Tesla T4",
+  "val": {
+    "macro_f1": 0.6450474428842291,
+    "micro_f1": 0.74067233099372,
+    "f1_per_class": {
+      "toxic": 0.7778260869565218,
+      "severe_toxic": 0.4811188811188811,
+      "obscene": 0.8200325732899023,
+      "threat": 0.5594405594405595,
+      "insult": 0.7210440456769984,
+      "identity_hate": 0.5108225108225108
+    },
+    "precision_per_class": {
+      "toxic": 0.7758022549869905,
+      "severe_toxic": 0.36210526315789476,
+      "obscene": 0.8469301934398654,
+      "threat": 0.5555555555555556,
+      "insult": 0.6960629921259842,
+      "identity_hate": 0.4701195219123506
+    },
+    "recall_per_class": {
+      "toxic": 0.7798605056669573,
+      "severe_toxic": 0.7166666666666667,
+      "obscene": 0.7947908445146015,
+      "threat": 0.5633802816901409,
+      "insult": 0.7478849407783418,
+      "identity_hate": 0.5592417061611374
+    },
+    "roc_auc": {
+      "toxic": 0.9680106741331779,
+      "severe_toxic": 0.9826553004726536,
+      "obscene": 0.9855077131261001,
+      "threat": 0.9655161220834328,
+      "insult": 0.9777633601023943,
+      "identity_hate": 0.9741614770349433
+    },
+    "pr_auc": {
+      "toxic": 0.8580957896691808,
+      "severe_toxic": 0.400935253857217,
+      "obscene": 0.8864455617111536,
+      "threat": 0.5047128746903183,
+      "insult": 0.7719969985679653,
+      "identity_hate": 0.44895839009201705
+    },
+    "thresholds": {
+      "toxic": 0.8312783531052204,
+      "severe_toxic": 0.9753187644780213,
+      "obscene": 0.971725727413977,
+      "threat": 0.9990933513330301,
+      "insult": 0.9286768428732822,
+      "identity_hate": 0.9970398562039927
+    }
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.4997757670766216,
+      "val_loss": 0.3545643985271454,
+      "val_macro_f1": 0.6002613809543886,
+      "val_macro_f1_at_0.5": 0.45498699008512977,
+      "epoch_time_sec": 23.21347141265869
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.3198807058032835,
+      "val_loss": 0.3441014289855957,
+      "val_macro_f1": 0.6323242414332488,
+      "val_macro_f1_at_0.5": 0.45416258115886815,
+      "epoch_time_sec": 22.21809411048889
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.276966703877355,
+      "val_loss": 0.4115365445613861,
+      "val_macro_f1": 0.6412841592015516,
+      "val_macro_f1_at_0.5": 0.4703888029877467,
+      "epoch_time_sec": 22.50482416152954
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.23842010941675892,
+      "val_loss": 0.5713049173355103,
+      "val_macro_f1": 0.6361801971401096,
+      "val_macro_f1_at_0.5": 0.5086766040135132,
+      "epoch_time_sec": 22.862940788269043
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.20756460556236966,
+      "val_loss": 0.5609962940216064,
+      "val_macro_f1": 0.6450474428842291,
+      "val_macro_f1_at_0.5": 0.49700670323692453,
+      "epoch_time_sec": 22.866488218307495
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.20684821729359115,
+      "val_loss": 0.6806015372276306,
+      "val_macro_f1": 0.6405084177821507,
+      "val_macro_f1_at_0.5": 0.5055437143202739,
+      "epoch_time_sec": 22.20201873779297
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.20007909363676768,
+      "val_loss": 0.7852455973625183,
+      "val_macro_f1": 0.6394297682373081,
+      "val_macro_f1_at_0.5": 0.5107825685825385,
+      "epoch_time_sec": 22.41714072227478
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.18366757919140997,
+      "val_loss": 0.8049444556236267,
+      "val_macro_f1": 0.6430270648109533,
+      "val_macro_f1_at_0.5": 0.5021578036859387,
+      "epoch_time_sec": 22.661861896514893
+    }
+  ],
+  "config": "C2",
+  "threshold_search": "all cutoffs (precision_recall_curve), float64 sigmoid",
+  "wall_time_sec": 191.83816981315613
+}
