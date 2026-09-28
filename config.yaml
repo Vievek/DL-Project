@@ -24,6 +24,8 @@ preprocessing:
   lowercase: true
   fit_tokenizer_on: "train"      # never "full" — avoids leakage
   min_vocab_freq: 2
+  embed_dim: 100
+  glove_path: "data/embeddings/glove.6B.100d.txt"
 
 training:
   batch_size: 32

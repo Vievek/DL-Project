@@ -1,9 +1,13 @@
 """
-M2 — TextCNN (owner: Teammate B)
+M2 — TextCNN
+Owner: Tharsiga Ranganathan (M2) - Preprocessing & TextCNN
 
-Convolutional filters of several widths slide over the word-embedding sequence, each width
-capturing a different n-gram-like pattern; max-pool each, concatenate, classify. Kim (2014),
-"Convolutional Neural Networks for Sentence Classification" — cite in References.
+Kim (2014), "Convolutional Neural Networks for Sentence Classification" — cite in References.
+
+Embedding (GloVe 6B 100d, fine-tuned) -> parallel Conv1d filters of widths (3, 4, 5), each width
+capturing a different n-gram-like pattern -> ReLU -> max-over-time pooling (padding positions
+masked out) -> concatenate -> dropout -> Linear(num_labels).
+Outputs raw logits (multi-label, no softmax) -> train with BCEWithLogitsLoss(pos_weight=...).
 """
 
 import torch
@@ -16,23 +20,62 @@ class TextCNNClassifier(nn.Module):
         self,
         vocab_size: int,
         num_labels: int,
-        embed_dim: int = 128,
+        embed_dim: int = 100,
         num_filters: int = 100,
         filter_sizes=(3, 4, 5),
-        dropout: float = 0.3,
+        dropout: float = 0.5,
         pad_idx: int = 0,
+        pretrained_embeddings: torch.Tensor = None,
+        freeze_embeddings: bool = False,
     ):
         super().__init__()
-        self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=pad_idx)
+        if pretrained_embeddings is not None:
+            # .clone() so training never changes the shared GloVe matrix used by other runs
+            self.embedding = nn.Embedding.from_pretrained(
+                pretrained_embeddings.clone(), freeze=freeze_embeddings, padding_idx=pad_idx
+            )
+        else:
+            self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=pad_idx)
+        embed_dim = self.embedding.embedding_dim
+
         self.convs = nn.ModuleList(
             [nn.Conv1d(embed_dim, num_filters, kernel_size=fs) for fs in filter_sizes]
         )
         self.dropout = nn.Dropout(dropout)
         self.classifier = nn.Linear(num_filters * len(filter_sizes), num_labels)
 
-    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
-        embedded = self.embedding(input_ids).permute(0, 2, 1)  # (batch, embed_dim, seq_len)
-        conv_outs = [F.relu(conv(embedded)) for conv in self.convs]
-        pooled = [F.max_pool1d(c, c.shape[2]).squeeze(2) for c in conv_outs]
-        concatenated = torch.cat(pooled, dim=1)
-        return self.classifier(self.dropout(concatenated))  # raw logits, shape (batch, num_labels)
+    @staticmethod
+    def _conv_unfold(conv: nn.Conv1d, x: torch.Tensor) -> torch.Tensor:
+        """Same result as conv(x), computed as unfold + matmul.
+        cuDNN picked a slow FFT algorithm for this Conv1d on the Colab T4
+        (85 ms/step -> 4.5 ms/step with this). Weights are the Conv1d's own weights."""
+        k = conv.kernel_size[0]
+        p = x.unfold(2, k, 1)                                   # (batch, embed_dim, L-k+1, k)
+        p = p.permute(0, 2, 1, 3).reshape(x.size(0), -1, x.size(1) * k)
+        out = p @ conv.weight.reshape(conv.out_channels, -1).t() + conv.bias
+        return out.permute(0, 2, 1)                             # (batch, num_filters, L-k+1)
+
+    def forward(self, input_ids: torch.Tensor, lengths: torch.Tensor = None,
+                mask: torch.Tensor = None) -> torch.Tensor:
+        # (batch, seq_len) -> (batch, seq_len, embed_dim) -> (batch, embed_dim, seq_len)
+        x = self.embedding(input_ids).permute(0, 2, 1)
+
+        pooled = []
+        for conv in self.convs:
+            c = F.relu(self._conv_unfold(conv, x))  # (batch, num_filters, seq_len - k + 1)
+            if mask is not None:
+                # A window is kept only if it starts on a real token, so padding never wins the max.
+                valid = mask[:, : c.size(2)].unsqueeze(1)
+                c = c.masked_fill(~valid, float("-inf"))
+            pooled.append(c.max(dim=2).values)  # max-over-time -> (batch, num_filters)
+
+        features = torch.cat(pooled, dim=1)  # (batch, num_filters * len(filter_sizes))
+        return self.classifier(self.dropout(features))  # raw logits, (batch, num_labels)
+
+
+def count_parameters(model: nn.Module, include_embedding: bool = True) -> int:
+    """Trainable parameters, optionally excluding the embedding table."""
+    return sum(
+        p.numel() for name, p in model.named_parameters()
+        if p.requires_grad and (include_embedding or not name.startswith("embedding."))
+    )
