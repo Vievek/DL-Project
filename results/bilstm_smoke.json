@@ -1,0 +1,16 @@
+{
+  "model": "bilstm",
+  "device": "cpu",
+  "train_samples": 1000,
+  "val_samples": 200,
+  "test_samples": 200,
+  "vocab_size": 4550,
+  "trainable_parameters": 692062,
+  "train_loss": 1.3042785682678222,
+  "val_loss": 1.3626498508453369,
+  "epoch_time_seconds": 21.729157209396362,
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "max_length": 128,
+  "seed": 42
+}
