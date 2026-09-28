@@ -23,7 +23,6 @@ MODEL_REGISTRY = {
     "textcnn": "src.models.textcnn",
     "bilstm_attention": "src.models.bilstm_attention",
     "distilbert": "src.models.distilbert",
-    "dummy": "src.models.dummy",
 }
 
 class TextDataset(Dataset):
