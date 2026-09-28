@@ -6,9 +6,19 @@ keeps the 4-model comparison fair and leakage-free. See config.yaml for the shar
 """
 
 import yaml
+from pathlib import Path
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 
+LABELS = [
+    "toxic",
+    "severe_toxic",
+    "obscene",
+    "threat",
+    "insult",
+    "identity_hate"
+]
 
 def load_config(path: str = "config.yaml") -> dict:
     with open(path, "r") as f:
@@ -21,26 +31,107 @@ def load_raw(cfg: dict) -> pd.DataFrame:
     return pd.read_csv(cfg["data"]["raw_csv"])
 
 
-def make_or_load_split(cfg: dict, df: pd.DataFrame):
+def make_or_load_split(
+    input_path,
+    output_dir,
+    random_state=42
+):
     """
-    Create the ONE canonical stratified train/val/test split (seeded), or load it if it already
-    exists on disk. Run this ONCE as a team and commit the resulting split file references (not
-    the data itself — see .gitignore) so everyone trains/evaluates on identical rows.
+    Create a fixed 70/15/15 multi-label stratified split.
 
-    TODO: implement multi-label stratification (e.g. iterative-stratification package) — plain
-    train_test_split does not stratify properly on multi-label targets, which matters given how
-    rare some classes are (threat, identity_hate).
+    The same random seed should be used by the whole team
+    so every model uses exactly the same train/validation/test data.
     """
-    seed = cfg["seed"]
-    val_ratio = cfg["data"]["val_ratio"]
-    test_ratio = cfg["data"]["test_ratio"]
 
-    train_val, test = train_test_split(df, test_size=test_ratio, random_state=seed)
-    train, val = train_test_split(
-        train_val, test_size=val_ratio / (1 - test_ratio), random_state=seed
+    input_path = Path(input_path)
+    output_dir = Path(output_dir)
+
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True
     )
-    return train.reset_index(drop=True), val.reset_index(drop=True), test.reset_index(drop=True)
 
+    train_path = output_dir / "train.csv"
+    val_path = output_dir / "val.csv"
+    test_path = output_dir / "test.csv"
+
+    # Reuse existing split
+    if (
+        train_path.exists()
+        and val_path.exists()
+        and test_path.exists()
+    ):
+        print("Existing split found. Loading it.")
+
+        return (
+            pd.read_csv(train_path),
+            pd.read_csv(val_path),
+            pd.read_csv(test_path)
+        )
+
+    print("Creating new 70/15/15 split...")
+
+    df = pd.read_csv(input_path)
+
+    # First split:
+    # 70% train
+    # 30% temporary
+    msss_1 = MultilabelStratifiedShuffleSplit(
+        n_splits=1,
+        test_size=0.30,
+        random_state=random_state
+    )
+
+    train_idx, temp_idx = next(
+        msss_1.split(
+            df,
+            df[LABELS]
+        )
+    )
+
+    train_df = df.iloc[train_idx].reset_index(drop=True)
+    temp_df = df.iloc[temp_idx].reset_index(drop=True)
+
+    # Second split:
+    # Half of 30% = 15%
+    # Half of 30% = 15%
+    msss_2 = MultilabelStratifiedShuffleSplit(
+        n_splits=1,
+        test_size=0.50,
+        random_state=random_state
+    )
+
+    val_idx, test_idx = next(
+        msss_2.split(
+            temp_df,
+            temp_df[LABELS]
+        )
+    )
+
+    val_df = temp_df.iloc[val_idx].reset_index(drop=True)
+    test_df = temp_df.iloc[test_idx].reset_index(drop=True)
+
+    # Save
+    train_df.to_csv(
+        train_path,
+        index=False
+    )
+
+    val_df.to_csv(
+        val_path,
+        index=False
+    )
+
+    test_df.to_csv(
+        test_path,
+        index=False
+    )
+
+    print("Train:", train_df.shape)
+    print("Validation:", val_df.shape)
+    print("Test:", test_df.shape)
+
+    return train_df, val_df, test_df
 
 def build_vocab(train_texts, min_freq: int = 2):
     """
