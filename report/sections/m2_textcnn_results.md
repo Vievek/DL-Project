@@ -1,10 +1,10 @@
 # 7. TextCNN Results
 
-*Owner: M2 (Tharsiga Ranganathan). Result files: `results/textcnn_*`, `results/hparam_v2/`, `results/ablation/`.*
+*Owner: M2 (Tharsiga Ranganathan). Result files: `results/textcnn_*`, `results/hparam_v2/`, `results/ablation/`. Test evaluation script: `src/textcnn_test.py`.*
 
 ## 7.1 Evaluation protocol
 
-All numbers in this section are on the **validation split** (23,936 comments). The test split is evaluated once, at the end, for all models together (Section 8). The main metric is **macro-F1**, the average F1 over the six labels, so the rare labels count as much as `toxic`. We also report micro-F1 and per-class F1.
+Sections 7.2–7.7 use the **validation split** (23,936 comments) only. All model choices (configuration, best epoch, embeddings, thresholds) were made there. The **test split** (23,936 comments) was then evaluated **once**, with the frozen final model and frozen thresholds (Section 7.8). The main metric is **macro-F1**, the average F1 over the six labels, so the rare labels count as much as `toxic`. We also report micro-F1 and per-class F1.
 
 For each label, the model's sigmoid probability is compared with a **per-class threshold**. We tune each threshold on validation to give the highest F1 for that label. Because the configuration, the best epoch and the thresholds are all chosen on validation, **validation scores are optimistic**. The test score is expected to be somewhat lower.
 
@@ -72,6 +72,8 @@ C1 was the worst in v1 and is second-best in v2. The capped grid did not just lo
 
 ![TextCNN training curves](../../results/textcnn_curves.png)
 
+*Figure 7.1 – TextCNN (C4, GloVe) learning curves. Left: weighted BCE loss on train and validation. Right: validation macro-F1 with per-class tuned thresholds and with a fixed 0.5 threshold.*
+
 **Validation loss starts to rise after epoch 2, but tuned macro-F1 keeps improving until epoch 3.** Normally a rising validation loss means overfitting. Here, the model is becoming **over-confident**: its probabilities move towards 0 and 1, so the few confident mistakes are punished heavily by the loss. At the same time, the **ranking** of comments (which comment is more toxic than which) still improves, and per-class threshold tuning only needs a good ranking.
 
 For this reason we use early stopping on **validation macro-F1**, not on validation loss. Stopping on loss would have picked epoch 2 and a weaker model. Training stopped after epoch 6 (patience 3), and the weights from epoch 3 were kept.
@@ -133,11 +135,62 @@ We inspected 10 false positives and 10 false negatives from the validation predi
 
 **Does GloVe help the rare classes?** Only partly. It clearly helped `identity_hate`, where the word meaning matters, but not `threat`, where the sentence meaning matters. This matches the ablation (7.6). This conclusion is based on one seed and very few examples, so it should be read as a trend, not a proven result.
 
-## 7.8 Summary
+## 7.8 Test results (evaluated once)
 
-- Final TextCNN (C4, GloVe): **validation macro-F1 0.6486, micro-F1 0.7463.**
+After all choices were fixed on validation, we ran the test split **one time** with `src/textcnn_test.py`. The script loads the saved C4 checkpoint and the validation-tuned thresholds from the same file. As a safety check, it first re-computes validation macro-F1 from the checkpoint (0.6486, exact match with Section 7.5) and only then evaluates test. Nothing was changed after seeing the test numbers.
+
+| Split | Macro-F1 | Micro-F1 |
+|---|---:|---:|
+| Validation | 0.6486 | 0.7463 |
+| **Test** | **0.6393** | **0.7399** |
+| Change | −0.0093 | −0.0064 |
+
+**The small drop is expected.** The configuration, the best epoch and the six thresholds were all picked to be best on validation, so validation is slightly optimistic (Section 7.1). A drop of less than 0.01 shows that these choices were not overfitted to the validation split.
+
+**Per-class test results** (thresholds from validation):
+
+| Label | Test positives | TP | FP | FN | Precision | Recall | F1 | ROC-AUC | PR-AUC |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| toxic | 2,294 | 1,787 | 523 | 507 | 0.774 | 0.779 | 0.776 | 0.973 | 0.866 |
+| severe_toxic | 239 | 156 | 266 | 83 | 0.370 | 0.653 | 0.472 | 0.989 | 0.423 |
+| obscene | 1,268 | 1,047 | 268 | 221 | 0.796 | 0.826 | 0.811 | 0.988 | 0.891 |
+| threat | 72 | 43 | 46 | 29 | 0.483 | 0.597 | 0.534 | 0.982 | 0.440 |
+| insult | 1,181 | 953 | 479 | 228 | 0.666 | 0.807 | 0.729 | 0.983 | 0.791 |
+| identity_hate | 211 | 127 | 157 | 84 | 0.447 | 0.602 | 0.513 | 0.983 | 0.518 |
+
+- **The pattern from validation holds on test.** `obscene` and `toxic` are strong (F1 0.78–0.81), and the three rare labels stay between 0.47 and 0.53.
+- **Recall is higher than precision for all six labels**, so the model still flags a few too many comments. The gap is largest for the rare labels. This is the same over-confidence as in Section 7.4.
+- **ROC-AUC is high (0.97–0.99) but PR-AUC is low for the rare labels** (0.42–0.52). ROC-AUC says the model *ranks* positives above negatives well. PR-AUC says that when positives are very rare, even a small share of wrongly ranked negatives outnumbers the true positives. For rare labels, PR-AUC is the more honest number.
+- **`threat` changed the most** (F1 0.561 → 0.534). With only 72 test positives, one example moves its F1 by about 0.01, so this change is within noise.
+- `severe_toxic` again has the lowest precision (0.370), as expected from the unclear line between *toxic* and *severe* (Section 7.5).
+
+**Inference speed.** Predicting the whole test split took about **0.045 s per 1,000 comments** on a Tesla T4 (batch size 32), with 7.58M parameters in total (92,106 without the embedding table).
+
+![TextCNN test confusion matrices](../../results/textcnn_confusion.png)
+
+*Figure 7.2 – TextCNN test confusion matrices, one per label, using the validation-tuned thresholds (shown in each title). Rows are true labels, columns are predictions.*
+
+![TextCNN test ROC curves](../../results/textcnn_roc.png)
+
+*Figure 7.3 – TextCNN test ROC curves per label, with ROC-AUC in the legend.*
+
+![TextCNN test precision-recall curves](../../results/textcnn_pr.png)
+
+*Figure 7.4 – TextCNN test precision-recall curves per label, with average precision (PR-AUC) in the legend. The rare labels (`severe_toxic`, `threat`, `identity_hate`) have much lower curves than the frequent labels.*
+
+## 7.9 Summary
+
+- Final TextCNN (C4, GloVe): **validation macro-F1 0.6486, test macro-F1 0.6393** (micro-F1 0.7463 / 0.7399).
 - The choice of filters and dropout matters very little (spread 0.0065).
 - **Proper threshold tuning mattered more than any model setting:** +0.039 macro-F1 with identical training.
 - **GloVe gives +0.023 macro-F1** and three times faster convergence, mostly through `identity_hate`.
 - TextCNN's main weakness is **short context**. It detects toxic words well, but misses toxicity carried by the whole sentence (implicit threats), and it over-reacts to toxic words used in harmless contexts.
 - Some errors come from **label noise** in the dataset, which limits the score any model can reach.
+
+## References
+
+Kim, Y. (2014). Convolutional Neural Networks for Sentence Classification. *Proceedings of EMNLP 2014*, 1746–1751.
+
+Pennington, J., Socher, R., & Manning, C. D. (2014). GloVe: Global Vectors for Word Representation. *Proceedings of EMNLP 2014*, 1532–1543.
+
+Pedregosa, F., et al. (2011). Scikit-learn: Machine Learning in Python. *Journal of Machine Learning Research*, 12, 2825–2830.
