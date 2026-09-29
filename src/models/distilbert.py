@@ -16,7 +16,14 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import f1_score
+import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    average_precision_score,
+    f1_score,
+    precision_recall_curve,
+    roc_auc_score,
+    roc_curve,
+)
 from tqdm import tqdm
 from transformers import DistilBertModel, DistilBertTokenizerFast
 
@@ -222,6 +229,50 @@ def smoke_test(cfg, train_df, val_df, test_df, full_train_size, ckpt_dir=None, f
     }
 
 
+def plot_curves(model, test_df, labels, cfg, device, use_amp=False, out_dir="results",
+                prefix="distilbert"):
+    """ROC and PR curves on the test split, one line per label with AUC/AP in the legend — same
+    style as the other models' results/<model>_roc.png and <model>_pr.png."""
+    tok = get_tokenizer()
+    loader = torch.utils.data.DataLoader(
+        ToxicDataset(test_df["comment_text"], test_df[labels].values, tok,
+                    cfg["preprocessing"]["max_length"]),
+        batch_size=cfg["training"]["batch_size"], shuffle=False,
+    )
+    y_true = test_df[labels].values
+    y_prob = predict_probs(model, loader, device, use_amp)
+    os.makedirs(out_dir, exist_ok=True)
+
+    plt.figure(figsize=(8, 6))
+    for i, label in enumerate(labels):
+        fpr, tpr, _ = roc_curve(y_true[:, i], y_prob[:, i])
+        auc = roc_auc_score(y_true[:, i], y_prob[:, i])
+        plt.plot(fpr, tpr, label=f"{label} (AUC={auc:.3f})")
+    plt.plot([0, 1], [0, 1], "k--", linewidth=0.8)
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("DistilBERT — ROC Curves (Test Set)")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"{prefix}_roc.png"))
+    plt.close()
+
+    plt.figure(figsize=(8, 6))
+    for i, label in enumerate(labels):
+        precision, recall, _ = precision_recall_curve(y_true[:, i], y_prob[:, i])
+        ap = average_precision_score(y_true[:, i], y_prob[:, i])
+        plt.plot(recall, precision, label=f"{label} (AP={ap:.3f})")
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("DistilBERT — Precision-Recall Curves (Test Set)")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"{prefix}_pr.png"))
+    plt.close()
+
+    return y_true, y_prob
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="config.yaml")
@@ -230,6 +281,8 @@ def main():
     parser.add_argument("--head_epochs", type=int, default=1)
     parser.add_argument("--ft_epochs", type=int, default=2)
     parser.add_argument("--limit", type=int, default=None, help="subsample rows (smoke test only)")
+    parser.add_argument("--plot", action="store_true",
+                        help="load --ckpt_dir/best.pt (no retraining) and save ROC/PR curve PNGs")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -246,6 +299,18 @@ def main():
         train_df, val_df, test_df = make_or_load_split(
             cfg["data"]["raw_csv"], cfg["data"]["split_dir"], random_state=cfg["seed"]
         )
+
+    if args.plot:
+        if not args.ckpt_dir:
+            raise SystemExit("--plot needs --ckpt_dir pointing at the checkpoint dir (best.pt)")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        labels = cfg["data"]["labels"]
+        model = DistilBertClassifier(len(labels)).to(device)
+        model.load_state_dict(torch.load(os.path.join(args.ckpt_dir, "best.pt"), map_location=device))
+        model.eval()
+        plot_curves(model, test_df, labels, cfg, device, use_amp=device.type == "cuda")
+        print(f"Saved results/distilbert_roc.png and results/distilbert_pr.png")
+        return
 
     results = train_distilbert(cfg, train_df, val_df, test_df, args.ckpt_dir,
                                args.head_epochs, args.ft_epochs)

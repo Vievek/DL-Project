@@ -12,7 +12,7 @@ distinct deep learning architectures are trained and compared, per the SE4050 as
 | TODO name | M1 — BiLSTM | |
 | TODO name | M2 — TextCNN | |
 | TODO name | M3 — BiLSTM + attention (or small Transformer encoder) | |
-| DEEPDEV | M4 — DistilBERT (fine-tuned) | |
+| Deepatharshan | M4 — DistilBERT (fine-tuned) | |
 
 A TF-IDF + Logistic Regression baseline is also included for reference; it does **not** count
 toward the 4 required deep-learning models.
