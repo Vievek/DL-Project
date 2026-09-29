@@ -26,6 +26,9 @@ was trained and evaluated on, so this comparison is fair.
 | insult | 0.698 | 0.820 | 0.988 | 0.825 | 0.92 |
 | identity_hate | 0.482 | 0.711 | 0.990 | 0.603 | 0.95 |
 
+![DistilBERT ROC curves](../../results/distilbert_roc.png)
+![DistilBERT precision-recall curves](../../results/distilbert_pr.png)
+
 ROC-AUC is above 0.98 for every class — DistilBERT ranks toxic comments above non-toxic ones very
 reliably, including for the rarest classes. The gap between ROC-AUC and PR-AUC on `severe_toxic`
 and `threat` (both above 0.99 ROC-AUC but under 0.5 PR-AUC) is the class-imbalance signature we see
