@@ -4,7 +4,7 @@
 
 ## 4.1 Dataset and exploratory analysis
 
-We use the Jigsaw Toxic Comment Classification dataset (Kaggle). It has 159,571 Wikipedia talk-page comments. Each comment has six binary labels: `toxic`, `severe_toxic`, `obscene`, `threat`, `insult` and `identity_hate`. A comment can have several labels at once, so this is a **multi-label** problem.
+We use the Jigsaw Toxic Comment Classification dataset (Jigsaw/Conversation AI, 2018), published on Kaggle. It has 159,571 Wikipedia talk-page comments. Each comment has six binary labels: `toxic`, `severe_toxic`, `obscene`, `threat`, `insult` and `identity_hate`. A comment can have several labels at once, so this is a **multi-label** problem.
 
 **Class imbalance.** The labels are very imbalanced. The table shows the positive counts in our validation split (23,936 comments):
 
@@ -21,7 +21,13 @@ We use the Jigsaw Toxic Comment Classification dataset (Kaggle). It has 159,571 
 
 **Comment length.** After tokenization, the median comment has 44 tokens, the mean is 83, and the 95th percentile is 279. Toxic comments are shorter than clean ones (median 29 vs 46 tokens).
 
-<!-- TODO: add EDA figure(s) from the EDA notebook, e.g. token-length histogram and label counts. -->
+![Comment length distribution](../../results/comment_length_hist.png)
+
+*Figure 4.1 – Distribution of comment length in tokens (clipped at 500; the bar at 500 collects all longer comments). The red line marks `max_length` = 128. Most comments are short, but there is a long tail: 16.5% of comments are longer than 128 tokens and are truncated (Section 4.5).*
+
+![Word clouds by label](../../results/wordclouds_by_label.png)
+
+*Figure 4.2 – Most frequent words in comments with each label (n = number of positive comments in the full dataset). **Warning: contains offensive language from the dataset.** The same few profanities dominate `toxic`, `severe_toxic`, `obscene` and `insult`, which shows how strongly these labels overlap. `threat` is dominated by ordinary words used with intent ("will", "die", "kill", "going"), so single keywords are weak evidence for it. `identity_hate` is dominated by identity terms, which are also used in neutral comments (a source of false positives, Section 7.7).*
 
 ## 4.2 Train / validation / test split
 
@@ -33,11 +39,11 @@ We use one stratified split for all models (`make_or_load_split`, seed 42):
 | Validation | 23,936 | 748 |
 | Test | 23,936 | 748 |
 
-Stratification keeps the rare labels (for example `threat`) in similar proportions in every split. We saved the split to CSV so every model reads the same rows.
+Because a comment can have several labels, ordinary stratification (on one label) is not enough. We use **iterative multi-label stratification** (Sechidis et al., 2011; Szymański & Kajdanowicz, 2017), via `MultilabelStratifiedShuffleSplit` from the `iterative-stratification` package, on **all six label columns**. The split is done in two steps with seed 42: first 70% train / 30% temporary, then the temporary part is split 50/50 into validation and test. This keeps the rare labels (for example `threat`) in similar proportions in every split.
+
+We saved the split to CSV, so every model reads exactly the same rows. MD5 checksums of the three CSV files are recorded in `results/split_checksums.txt`, so any team member can check that their copy is identical.
 
 **Test set rule.** We choose all model settings, epochs and thresholds on **validation only**. The test set is evaluated once, at the end, for all models together.
-
-<!-- TODO: confirm with Shevoni that her split gives the same counts, and what column(s) the stratification uses. -->
 
 ## 4.3 Cleaning and tokenization
 
@@ -116,3 +122,15 @@ The ablation in Section 7 shows that GloVe helps TextCNN: validation macro-F1 is
 - **Non-Latin text.** The tokenizer is designed for English. Text in other scripts (for example Cyrillic) breaks into single meaningless characters. Some `identity_hate` examples in the error analysis are partly Cyrillic.
 - **Truncation.** 16.5% of comments are cut at 128 tokens, and we keep only the start. In the error analysis, some missed threats may be in the removed part.
 - **Label noise.** The error analysis found clean-labelled personal attacks and standard warnings labelled as threats. Preprocessing cannot fix this, but it limits the best score any model can reach.
+
+## References
+
+Jigsaw/Conversation AI. (2018). *Toxic Comment Classification Challenge* [Dataset]. Kaggle. https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge
+
+Kim, Y. (2014). Convolutional Neural Networks for Sentence Classification. *Proceedings of EMNLP 2014*, 1746–1751.
+
+Pennington, J., Socher, R., & Manning, C. D. (2014). GloVe: Global Vectors for Word Representation. *Proceedings of EMNLP 2014*, 1532–1543.
+
+Sechidis, K., Tsoumakas, G., & Vlahavas, I. (2011). On the Stratification of Multi-label Data. *Machine Learning and Knowledge Discovery in Databases (ECML PKDD 2011)*, LNCS 6913, 145–158.
+
+Szymański, P., & Kajdanowicz, T. (2017). A Network Perspective on Stratification of Multi-Label Data. *Proceedings of the First International Workshop on Learning with Imbalanced Domains*, PMLR 74, 22–35.
