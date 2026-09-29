@@ -1,0 +1,148 @@
+{
+  "model": "BiLSTM",
+  "val": {
+    "macro_f1": 0.6605052415221055,
+    "micro_f1": 0.7560745903183274,
+    "precision_per_class": {
+      "toxic": 0.8133883539660706,
+      "severe_toxic": 0.4981949458483754,
+      "obscene": 0.8389694041867954,
+      "threat": 0.6290322580645161,
+      "insult": 0.683371298405467,
+      "identity_hate": 0.4416058394160584
+    },
+    "recall_per_class": {
+      "toxic": 0.7733217088055798,
+      "severe_toxic": 0.575,
+      "obscene": 0.8224151539068666,
+      "threat": 0.5492957746478874,
+      "insult": 0.7614213197969543,
+      "identity_hate": 0.5734597156398105
+    },
+    "roc_auc": {
+      "toxic": 0.9718716017411653,
+      "severe_toxic": 0.9904046744879585,
+      "obscene": 0.9873873074651807,
+      "threat": 0.9895586382320742,
+      "insult": 0.9788268944959306,
+      "identity_hate": 0.9761373159074905
+    },
+    "pr_auc": {
+      "toxic": 0.8762526084224224,
+      "severe_toxic": 0.47389862500836033,
+      "obscene": 0.8862420401354897,
+      "threat": 0.47318018230661446,
+      "insult": 0.7628546944957657,
+      "identity_hate": 0.41448466477970614
+    },
+    "thresholds": {
+      "toxic": 0.8664259910583496,
+      "severe_toxic": 0.9915999174118042,
+      "obscene": 0.9636649489402771,
+      "threat": 0.9984642267227173,
+      "insult": 0.9337202310562134,
+      "identity_hate": 0.9878222346305847
+    }
+  },
+  "test": {
+    "macro_f1": 0.6331185346412115,
+    "micro_f1": 0.745343940102948,
+    "precision_per_class": {
+      "toxic": 0.7945266935845671,
+      "severe_toxic": 0.45357142857142857,
+      "obscene": 0.8189038919777601,
+      "threat": 0.4857142857142857,
+      "insult": 0.6792738275340393,
+      "identity_hate": 0.4653846153846154
+    },
+    "recall_per_class": {
+      "toxic": 0.7720139494333043,
+      "severe_toxic": 0.5313807531380753,
+      "obscene": 0.8130914826498423,
+      "threat": 0.4722222222222222,
+      "insult": 0.7603725656223539,
+      "identity_hate": 0.5734597156398105
+    },
+    "roc_auc": {
+      "toxic": 0.9706673436092933,
+      "severe_toxic": 0.9900752756691303,
+      "obscene": 0.9876420970876272,
+      "threat": 0.9793494152046783,
+      "insult": 0.9799830726412166,
+      "identity_hate": 0.9763162021384446
+    },
+    "pr_auc": {
+      "toxic": 0.8675571065945266,
+      "severe_toxic": 0.4542375895049759,
+      "obscene": 0.890766910333954,
+      "threat": 0.4680593955894829,
+      "insult": 0.7674121672889188,
+      "identity_hate": 0.48018108032536455
+    },
+    "thresholds": {
+      "toxic": 0.8664259910583496,
+      "severe_toxic": 0.9915999174118042,
+      "obscene": 0.9636649489402771,
+      "threat": 0.9984642267227173,
+      "insult": 0.9337202310562134,
+      "identity_hate": 0.9878222346305847
+    }
+  },
+  "efficiency": {
+    "params_total": 7728662,
+    "train_time_sec": 523.3877594470977,
+    "inference_sec_per_1000": 0.3521891711229947,
+    "gpu": "Tesla T4"
+  },
+  "history": [
+    {
+      "stage": "training",
+      "epoch": 1,
+      "train_loss": 0.5012109530990194,
+      "val_macro_f1": 0.5565298246648736
+    },
+    {
+      "stage": "training",
+      "epoch": 2,
+      "train_loss": 0.2901952261034092,
+      "val_macro_f1": 0.629511881956786
+    },
+    {
+      "stage": "training",
+      "epoch": 3,
+      "train_loss": 0.21149157811267105,
+      "val_macro_f1": 0.6424851635538308
+    },
+    {
+      "stage": "training",
+      "epoch": 4,
+      "train_loss": 0.16543181023149137,
+      "val_macro_f1": 0.6500788928902052
+    },
+    {
+      "stage": "training",
+      "epoch": 5,
+      "train_loss": 0.1389603012847647,
+      "val_macro_f1": 0.6605052415221055
+    },
+    {
+      "stage": "training",
+      "epoch": 6,
+      "train_loss": 0.11685781985164159,
+      "val_macro_f1": 0.6573775368951459
+    },
+    {
+      "stage": "training",
+      "epoch": 7,
+      "train_loss": 0.10266754088956369,
+      "val_macro_f1": 0.653034255674917
+    },
+    {
+      "stage": "training",
+      "epoch": 8,
+      "train_loss": 0.08986698512850486,
+      "val_macro_f1": 0.650201565729725
+    }
+  ],
+  "best_epoch": 5
+}
