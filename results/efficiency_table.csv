@@ -1,0 +1,5 @@
+model,params_total,trainable_params_excl_embedding,epochs_run,best_epoch,total_train_time_sec,avg_epoch_time_sec,inference_sec_per_1000,gpu,fp16,test_macro_f1
+BiLSTM (M1),7728662,,8,5,523.4,65.4,0.3522,Tesla T4,False,0.6331
+TextCNN (M2),7583706,92106,6,3,135.9,22.6,0.0447,Tesla T4,False,0.6393
+BiLSTM+Attention (M3),7728919,237319,10,7,253.8,25.4,0.0557,Tesla T4,False,0.6481
+DistilBERT (M4),66367494,,3,3,917.4,305.8,0.9409,Tesla T4,True,0.6803
